@@ -27,7 +27,7 @@ public class GitHubService {
                 .addHeader("Authorization", "Bearer " + githubToken)
                 .addHeader("Accept", "application/vnd.github.v3.diff")
                 .addHeader("X-GitHub-Api-Version", "2022-11-28")
-                .build();gut
+                .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
