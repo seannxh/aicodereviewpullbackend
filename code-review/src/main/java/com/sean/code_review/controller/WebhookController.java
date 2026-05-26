@@ -61,7 +61,7 @@ public class WebhookController {
             reviewRepository.save(review);
 
             // Run review async so webhook returns immediately
-            new Thread(() -> claudeReviewService.reviewPullRequest(review, "diff placeholder")).start();
+            new Thread(() -> claudeReviewService.reviewPullRequest(review)).start();
 
             return ResponseEntity.ok("Review queued for PR #" + prNumber);
 
