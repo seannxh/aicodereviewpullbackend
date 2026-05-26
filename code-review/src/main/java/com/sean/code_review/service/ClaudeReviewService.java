@@ -25,25 +25,51 @@ public class ClaudeReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ReviewCommentRepository reviewCommentRepository;
+    private final GitHubService gitHubService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final OkHttpClient httpClient = new OkHttpClient();
 
     public ClaudeReviewService(ReviewRepository reviewRepository,
-                               ReviewCommentRepository reviewCommentRepository) {
+                               ReviewCommentRepository reviewCommentRepository,
+                               GitHubService gitHubService) {
+
         this.reviewRepository = reviewRepository;
         this.reviewCommentRepository = reviewCommentRepository;
+        this.gitHubService = gitHubService;
     }
 
-    public void reviewPullRequest(Review review, String diff) {
+    public void reviewPullRequest(Review review) {
         try {
             review.setStatus("processing");
             reviewRepository.save(review);
+
+            String diff = gitHubService.getPullRequestDiff(
+                    review.getRepoFullName(), review.getPrNumber());
+
+            System.out.println("Diff length: " + (diff != null ? diff.length() : "null"));
+            System.out.println("Diff preview: " + (diff != null && diff.length() > 200 ? diff.substring(0, 200) : diff));
+
+            if (diff == null || diff.trim().isEmpty()) {
+                review.setStatus("complete");
+                reviewRepository.save(review);
+                System.out.println("No diff found for PR #" + review.getPrNumber());
+                return;
+            }
+
+            String commitSha = gitHubService.getLatestCommitSha(
+                    review.getRepoFullName(), review.getPrNumber());
 
             String prompt = buildPrompt(diff);
             String claudeResponse = callClaudeApi(prompt);
             List<ReviewComment> comments = parseComments(claudeResponse, review);
 
             reviewCommentRepository.saveAll(comments);
+
+            if (!comments.isEmpty()) {
+                gitHubService.postReviewComments(
+                        review.getRepoFullName(), review.getPrNumber(), commitSha, comments);
+            }
 
             review.setStatus("complete");
             reviewRepository.save(review);
@@ -110,7 +136,7 @@ public class ClaudeReviewService {
         try {
             JsonNode root = objectMapper.readTree(claudeResponse);
             String content = root.path("content").get(0).path("text").asText();
-
+            System.out.println("Claude raw response: " + content);
             String jsonArray = content.trim();
             if (jsonArray.startsWith("[")) {
                 JsonNode commentsNode = objectMapper.readTree(jsonArray);
