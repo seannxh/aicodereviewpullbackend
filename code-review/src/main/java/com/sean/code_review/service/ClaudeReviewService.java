@@ -28,7 +28,12 @@ public class ClaudeReviewService {
     private final GitHubService gitHubService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final OkHttpClient httpClient = new OkHttpClient();
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            .callTimeout(180, java.util.concurrent.TimeUnit.SECONDS)
+            .build();
 
     public ClaudeReviewService(ReviewRepository reviewRepository,
                                ReviewCommentRepository reviewCommentRepository,
@@ -46,6 +51,9 @@ public class ClaudeReviewService {
 
             String diff = gitHubService.getPullRequestDiff(
                     review.getRepoFullName(), review.getPrNumber());
+            if (diff.length() > 8000) {
+                diff = diff.substring(0, 8000);
+            }
 
             System.out.println("Diff length: " + (diff != null ? diff.length() : "null"));
             System.out.println("Diff preview: " + (diff != null && diff.length() > 200 ? diff.substring(0, 200) : diff));
@@ -137,7 +145,11 @@ public class ClaudeReviewService {
             JsonNode root = objectMapper.readTree(claudeResponse);
             String content = root.path("content").get(0).path("text").asText();
             System.out.println("Claude raw response: " + content);
-            String jsonArray = content.trim();
+            content = content.replace("```json", "")
+                    .replace("```", "")
+                    .trim();
+
+            String jsonArray = content;
             if (jsonArray.startsWith("[")) {
                 JsonNode commentsNode = objectMapper.readTree(jsonArray);
                 for (JsonNode node : commentsNode) {
