@@ -1,5 +1,10 @@
 package com.sean.code_review.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sean.code_review.model.entity.Review;
+import com.sean.code_review.repository.ReviewRepository;
+import com.sean.code_review.service.ClaudeReviewService;
 import com.sean.code_review.util.WebhookSignatureValidator;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,9 +15,16 @@ import org.springframework.web.bind.annotation.*;
 public class WebhookController {
 
     private final WebhookSignatureValidator signatureValidator;
+    private final ReviewRepository reviewRepository;
+    private final ClaudeReviewService claudeReviewService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public WebhookController(WebhookSignatureValidator signatureValidator) {
+    public WebhookController(WebhookSignatureValidator signatureValidator,
+                             ReviewRepository reviewRepository,
+                             ClaudeReviewService claudeReviewService) {
         this.signatureValidator = signatureValidator;
+        this.reviewRepository = reviewRepository;
+        this.claudeReviewService = claudeReviewService;
     }
 
     @PostMapping("/github")
@@ -25,9 +37,36 @@ public class WebhookController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid signature");
         }
 
-        System.out.println("Received GitHub event: " + eventType);
-        System.out.println("Payload: " + payload);
+        if (!"pull_request".equals(eventType)) {
+            return ResponseEntity.ok("Event ignored");
+        }
 
-        return ResponseEntity.ok("Received");
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            String action = root.path("action").asText();
+
+            if (!"opened".equals(action) && !"synchronize".equals(action)) {
+                return ResponseEntity.ok("Action ignored");
+            }
+
+            String repoFullName = root.path("repository").path("full_name").asText();
+            int prNumber = root.path("number").asInt();
+            String prTitle = root.path("pull_request").path("title").asText();
+
+            Review review = new Review();
+            review.setRepoFullName(repoFullName);
+            review.setPrNumber(prNumber);
+            review.setPrTitle(prTitle);
+            review.setStatus("pending");
+            reviewRepository.save(review);
+
+            // Run review async so webhook returns immediately
+            new Thread(() -> claudeReviewService.reviewPullRequest(review, "diff placeholder")).start();
+
+            return ResponseEntity.ok("Review queued for PR #" + prNumber);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
+        }
     }
 }
