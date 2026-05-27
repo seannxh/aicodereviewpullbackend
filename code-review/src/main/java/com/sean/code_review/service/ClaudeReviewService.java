@@ -28,7 +28,11 @@ public class ClaudeReviewService {
     private final GitHubService gitHubService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final OkHttpClient httpClient = new OkHttpClient();
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build();
 
     public ClaudeReviewService(ReviewRepository reviewRepository,
                                ReviewCommentRepository reviewCommentRepository,
