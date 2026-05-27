@@ -33,7 +33,6 @@ public class ClaudeReviewService {
     public ClaudeReviewService(ReviewRepository reviewRepository,
                                ReviewCommentRepository reviewCommentRepository,
                                GitHubService gitHubService) {
-
         this.reviewRepository = reviewRepository;
         this.reviewCommentRepository = reviewCommentRepository;
         this.gitHubService = gitHubService;
@@ -44,8 +43,10 @@ public class ClaudeReviewService {
             review.setStatus("processing");
             reviewRepository.save(review);
 
+            long installationId = review.getInstallationId();
+
             String diff = gitHubService.getPullRequestDiff(
-                    review.getRepoFullName(), review.getPrNumber());
+                    review.getRepoFullName(), review.getPrNumber(), installationId);
 
             System.out.println("Diff length: " + (diff != null ? diff.length() : "null"));
             System.out.println("Diff preview: " + (diff != null && diff.length() > 200 ? diff.substring(0, 200) : diff));
@@ -58,7 +59,7 @@ public class ClaudeReviewService {
             }
 
             String commitSha = gitHubService.getLatestCommitSha(
-                    review.getRepoFullName(), review.getPrNumber());
+                    review.getRepoFullName(), review.getPrNumber(), installationId);
 
             String prompt = buildPrompt(diff);
             String claudeResponse = callClaudeApi(prompt);
@@ -68,25 +69,27 @@ public class ClaudeReviewService {
 
             if (!comments.isEmpty()) {
                 gitHubService.postReviewComments(
-                        review.getRepoFullName(), review.getPrNumber(), commitSha, comments);
+                        review.getRepoFullName(), review.getPrNumber(), commitSha, comments, installationId);
             }
 
             review.setStatus("complete");
             reviewRepository.save(review);
 
-            System.out.println("Review complete. Found " + comments.size() + " comments.");
+            System.out.println("Review complete for installation " + installationId
+                    + ". Found " + comments.size() + " comments.");
 
         } catch (Exception e) {
             review.setStatus("failed");
             reviewRepository.save(review);
-            System.err.println("Review failed: " + e.getMessage());
+            System.err.println("Review failed for installation " + review.getInstallationId()
+                    + ": " + e.getMessage());
         }
     }
 
     private String buildPrompt(String diff) {
         return """
             You are a senior code reviewer. Analyze this PR diff and find issues.
-            
+
             Respond with a JSON array only, no other text:
             [
               {
@@ -97,10 +100,10 @@ public class ClaudeReviewService {
                 "suggestion": "How to fix it"
               }
             ]
-            
+
             Severity levels: "error", "warning", "suggestion"
             If no issues found return: []
-            
+
             Diff:
             """ + diff;
     }

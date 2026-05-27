@@ -26,6 +26,13 @@ public class Review {
     @Column(name = "status")
     private String status = "pending";
 
+    /**
+     * GitHub App installation ID from the webhook payload (installation.id).
+     * Used to obtain the correct per-installation access token for this repo.
+     */
+    @Column(name = "installation_id")
+    private Long installationId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 

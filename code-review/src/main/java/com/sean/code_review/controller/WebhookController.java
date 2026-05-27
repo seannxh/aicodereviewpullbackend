@@ -53,10 +53,19 @@ public class WebhookController {
             int prNumber = root.path("number").asInt();
             String prTitle = root.path("pull_request").path("title").asText();
 
+            // installation.id identifies which user/org installed the GitHub App.
+            // This is how we get the right scoped token for their repos.
+            long installationId = root.path("installation").path("id").asLong();
+            if (installationId == 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Missing installation.id — is this a GitHub App webhook?");
+            }
+
             Review review = new Review();
             review.setRepoFullName(repoFullName);
             review.setPrNumber(prNumber);
             review.setPrTitle(prTitle);
+            review.setInstallationId(installationId);
             review.setStatus("pending");
             reviewRepository.save(review);
 
