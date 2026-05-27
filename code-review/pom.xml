@@ -41,6 +41,13 @@
 			<artifactId>jackson-databind</artifactId>
 		</dependency>
 
+		<!-- Bouncy Castle — PEM/RSA key parsing for GitHub App JWT -->
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcpkix-jdk18on</artifactId>
+			<version>1.78</version>
+		</dependency>
+
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

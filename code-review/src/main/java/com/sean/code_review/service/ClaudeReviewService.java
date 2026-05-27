@@ -37,22 +37,25 @@ public class ClaudeReviewService {
     public ClaudeReviewService(ReviewRepository reviewRepository,
                                ReviewCommentRepository reviewCommentRepository,
                                GitHubService gitHubService) {
-
         this.reviewRepository = reviewRepository;
         this.reviewCommentRepository = reviewCommentRepository;
         this.gitHubService = gitHubService;
     }
 
     public void reviewPullRequest(Review review) {
+        // Resolve installation ID — default to 0 so GitHubService falls back to PAT
+        long installationId = review.getInstallationId() != null ? review.getInstallationId() : 0L;
+
         try {
             review.setStatus("processing");
             reviewRepository.save(review);
 
             String diff = gitHubService.getPullRequestDiff(
-                    review.getRepoFullName(), review.getPrNumber());
+                    review.getRepoFullName(), review.getPrNumber(), installationId);
 
             System.out.println("Diff length: " + (diff != null ? diff.length() : "null"));
-            System.out.println("Diff preview: " + (diff != null && diff.length() > 200 ? diff.substring(0, 200) : diff));
+            System.out.println("Diff preview: " + (diff != null && diff.length() > 200
+                    ? diff.substring(0, 200) : diff));
 
             if (diff == null || diff.trim().isEmpty()) {
                 review.setStatus("complete");
@@ -62,7 +65,7 @@ public class ClaudeReviewService {
             }
 
             String commitSha = gitHubService.getLatestCommitSha(
-                    review.getRepoFullName(), review.getPrNumber());
+                    review.getRepoFullName(), review.getPrNumber(), installationId);
 
             String prompt = buildPrompt(diff);
             String claudeResponse = callClaudeApi(prompt);
@@ -72,7 +75,8 @@ public class ClaudeReviewService {
 
             if (!comments.isEmpty()) {
                 gitHubService.postReviewComments(
-                        review.getRepoFullName(), review.getPrNumber(), commitSha, comments);
+                        review.getRepoFullName(), review.getPrNumber(),
+                        commitSha, comments, installationId);
             }
 
             review.setStatus("complete");
@@ -83,14 +87,19 @@ public class ClaudeReviewService {
         } catch (Exception e) {
             review.setStatus("failed");
             reviewRepository.save(review);
-            System.err.println("Review failed: " + e.getMessage());
+            System.err.println("Review failed for PR #" + review.getPrNumber()
+                    + ": " + e.getMessage());
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Prompt construction
+    // -------------------------------------------------------------------------
 
     private String buildPrompt(String diff) {
         return """
             You are a senior code reviewer. Analyze this PR diff and find issues.
-            
+
             Respond with a JSON array only, no other text:
             [
               {
@@ -101,13 +110,17 @@ public class ClaudeReviewService {
                 "suggestion": "How to fix it"
               }
             ]
-            
+
             Severity levels: "error", "warning", "suggestion"
             If no issues found return: []
-            
+
             Diff:
             """ + diff;
     }
+
+    // -------------------------------------------------------------------------
+    // Claude API call
+    // -------------------------------------------------------------------------
 
     private String callClaudeApi(String prompt) throws IOException {
         String requestBody = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
@@ -135,6 +148,10 @@ public class ClaudeReviewService {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Response parsing
+    // -------------------------------------------------------------------------
+
     private List<ReviewComment> parseComments(String claudeResponse, Review review) {
         List<ReviewComment> comments = new ArrayList<>();
         try {
@@ -145,7 +162,9 @@ public class ClaudeReviewService {
             // Strip markdown code fences if present
             String jsonArray = content.trim();
             if (jsonArray.startsWith("```")) {
-                jsonArray = jsonArray.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+                jsonArray = jsonArray.replaceAll("```json\\s*", "")
+                                     .replaceAll("```\\s*", "")
+                                     .trim();
             }
 
             if (jsonArray.startsWith("[")) {
@@ -166,6 +185,5 @@ public class ClaudeReviewService {
             System.err.println("Failed to parse Claude response: " + e.getMessage());
         }
         return comments;
-
     }
 }
