@@ -28,7 +28,11 @@ public class ClaudeReviewService {
     private final GitHubService gitHubService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final OkHttpClient httpClient = new OkHttpClient();
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build();
 
     public ClaudeReviewService(ReviewRepository reviewRepository,
                                ReviewCommentRepository reviewCommentRepository,
@@ -137,7 +141,13 @@ public class ClaudeReviewService {
             JsonNode root = objectMapper.readTree(claudeResponse);
             String content = root.path("content").get(0).path("text").asText();
             System.out.println("Claude raw response: " + content);
+
+            // Strip markdown code fences if present
             String jsonArray = content.trim();
+            if (jsonArray.startsWith("```")) {
+                jsonArray = jsonArray.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+            }
+
             if (jsonArray.startsWith("[")) {
                 JsonNode commentsNode = objectMapper.readTree(jsonArray);
                 for (JsonNode node : commentsNode) {
@@ -156,5 +166,6 @@ public class ClaudeReviewService {
             System.err.println("Failed to parse Claude response: " + e.getMessage());
         }
         return comments;
+
     }
 }
