@@ -8,6 +8,7 @@ import com.sean.code_review.repository.ReviewCommentRepository;
 import com.sean.code_review.repository.ReviewRepository;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -42,6 +43,7 @@ public class ClaudeReviewService {
         this.gitHubService = gitHubService;
     }
 
+    @Async
     public void reviewPullRequest(Review review) {
         // Resolve installation ID — default to 0 so GitHubService falls back to PAT
         long installationId = review.getInstallationId() != null ? review.getInstallationId() : 0L;

@@ -36,11 +36,11 @@ public class  ReviewController {
         review.setPrTitle("Manual Review");
         review.setStatus("pending");
 
-        Review savedReview = reviewRepository.save(review);
+        reviewRepository.save(review);
 
-        new Thread(() -> claudeReviewService.reviewPullRequest(savedReview)).start();
+        claudeReviewService.reviewPullRequest(review);
 
-        return ResponseEntity.ok(savedReview);
+        return ResponseEntity.ok(review);
     }
 
     @Setter
