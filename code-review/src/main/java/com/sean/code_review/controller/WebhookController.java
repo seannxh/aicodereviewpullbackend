@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sean.code_review.model.entity.Review;
 import com.sean.code_review.repository.ReviewRepository;
 import com.sean.code_review.service.ClaudeReviewService;
-import com.sean.code_review.util.WebhookSignatureValidator;
+import com.sean.code_review.config.WebhookSignatureValidator;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

@@ -1,4 +1,4 @@
-package com.sean.code_review.config;
+package com.sean.code_review.controller;
 
 import com.sean.code_review.model.entity.Review;
 import com.sean.code_review.repository.ReviewRepository;
