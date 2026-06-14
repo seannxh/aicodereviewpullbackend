@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/reviews")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://codereview-lb-1137663267.us-east-1.elb.amazonaws.com"}, allowCredentials = "true")
 public class  ReviewController {
 
     private final ReviewRepository reviewRepository;
@@ -20,6 +20,18 @@ public class  ReviewController {
                             ClaudeReviewService claudeReviewService) {
         this.reviewRepository = reviewRepository;
         this.claudeReviewService = claudeReviewService;
+    }
+
+    @GetMapping
+    public ResponseEntity<java.util.List<Review>> listReviews() {
+        return ResponseEntity.ok(reviewRepository.findAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Review> getReview(@PathVariable String id) {
+        return reviewRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
