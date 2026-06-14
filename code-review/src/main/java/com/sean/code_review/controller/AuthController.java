@@ -19,13 +19,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         Map<String, Object> a = principal.getAttributes();
-        return ResponseEntity.ok(Map.of(
-                "id",             ((Number) a.get("id")).longValue(),
-                "githubId",       String.valueOf(a.get("id")),
-                "githubUsername", a.getOrDefault("login", ""),
-                "email",          a.getOrDefault("email", ""),
-                "avatarUrl",      a.getOrDefault("avatar_url", ""),
-                "createdAt",      Instant.now().toString()
-        ));
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id",             a.get("id") != null ? ((Number) a.get("id")).longValue() : 0L);
+        response.put("githubId",       String.valueOf(a.get("id")));
+        response.put("githubUsername", a.getOrDefault("login", ""));
+        response.put("email",          a.get("email") != null ? a.get("email") : "");
+        response.put("avatarUrl",      a.getOrDefault("avatar_url", ""));
+        response.put("createdAt",      Instant.now().toString());
+        return ResponseEntity.ok(response);
     }
 }

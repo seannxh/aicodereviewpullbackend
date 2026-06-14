@@ -22,6 +22,11 @@ public class  ReviewController {
         this.claudeReviewService = claudeReviewService;
     }
 
+    @GetMapping
+    public ResponseEntity<java.util.List<Review>> listReviews() {
+        return ResponseEntity.ok(reviewRepository.findAll());
+    }
+
     @PostMapping
     public ResponseEntity<Review> startManualReview(@RequestBody ReviewRequest request) {
         String repoFullName = request.getRepoUrl()
