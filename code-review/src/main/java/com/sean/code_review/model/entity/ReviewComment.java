@@ -25,12 +25,15 @@ public class ReviewComment {
     @Column(name = "severity")
     private String severity;
 
+    //columnDefinition = "TEXT" — for comment/suggestion,
+    // makes the DB column allow long text (regular VARCHAR has a length limit, TEXT doesn't).
+
     @Column(name = "comment", columnDefinition = "TEXT")
     private String comment;
 
     @Column(name = "suggestion", columnDefinition = "TEXT")
     private String suggestion;
-
+    // postedToGithub = false — tracks whether this comment has actually been posted back to GitHub yet (default: not yet)
     @Column(name = "posted_to_github")
     private Boolean postedToGithub = false;
 }
