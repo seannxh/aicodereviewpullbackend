@@ -27,6 +27,13 @@ public class  ReviewController {
         return ResponseEntity.ok(reviewRepository.findAll());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Review> getReview(@PathVariable String id) {
+        return reviewRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     public ResponseEntity<Review> startManualReview(@RequestBody ReviewRequest request) {
         String repoFullName = request.getRepoUrl()
