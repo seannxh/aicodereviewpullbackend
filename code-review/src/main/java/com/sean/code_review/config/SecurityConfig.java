@@ -25,6 +25,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Webhooks must be public (GitHub posts here, no session)
                         .requestMatchers("/api/webhooks/**").permitAll()
+                        // Auth check — must be permitAll so unauthenticated users get 401 not a redirect
+                        .requestMatchers("/api/auth/me").permitAll()
                         // SPA shell + static assets — React handles auth internally via getMe()
                         .requestMatchers(
                                 "/", "/index.html", "/favicon.ico",
